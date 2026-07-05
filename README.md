@@ -1,5 +1,7 @@
 # nb.nvim
 
+[![CI](https://github.com/mozumasu/nb.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/mozumasu/nb.nvim/actions/workflows/ci.yml)
+
 Neovim integration for [`nb`](https://github.com/xwmx/nb) — the CLI plain-text
 note-taking, bookmarking, and knowledge base tool.
 
