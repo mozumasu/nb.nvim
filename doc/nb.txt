@@ -1,0 +1,207 @@
+*nb.txt*                Neovim integration for the nb CLI note-taking tool
+
+==============================================================================
+CONTENTS                                                     *nb.nvim* *nb-contents*
+
+  1. Introduction ................................. |nb-introduction|
+  2. Requirements ................................. |nb-requirements|
+  3. Setup ........................................ |nb-setup|
+  4. Options ...................................... |nb-options|
+  5. UI functions ................................. |nb-ui|
+  6. Core API ..................................... |nb-api|
+  7. Autosync ..................................... |nb-autosync|
+  8. Health ....................................... |nb-health|
+
+==============================================================================
+1. INTRODUCTION                                              *nb-introduction*
+
+nb.nvim integrates nb (https://github.com/xwmx/nb) — the CLI plain-text
+note-taking, bookmarking, and knowledge base tool — into Neovim.
+
+Browse, create, link, and organize your nb notes without leaving the editor,
+with automatic git commit & remote sync when you close a note.
+
+==============================================================================
+2. REQUIREMENTS                                              *nb-requirements*
+
+- Neovim >= 0.10
+- nb (https://github.com/xwmx/nb)
+- snacks.nvim (https://github.com/folke/snacks.nvim) — picker UI
+- img-clip.nvim (https://github.com/HakonHarnes/img-clip.nvim) — optional,
+  clipboard image import
+
+==============================================================================
+3. SETUP                                                             *nb-setup*
+
+With lazy.nvim: >lua
+
+  {
+    "mozumasu/nb.nvim",
+    dependencies = { "folke/snacks.nvim" },
+    lazy = false, -- register autosync autocmds at startup
+    opts = {},
+    keys = {
+      { "<leader>np", function() require("nb").pick() end, desc = "nb picker" },
+      -- see the README for a full keymap example
+    },
+  }
+<
+==============================================================================
+4. OPTIONS                                                         *nb-options*
+
+Defaults: >lua
+
+  require("nb").setup({
+    -- nb data directory (nil resolves $NB_DIR, then ~/.nb)
+    dir = nil,
+    -- `nb browse` port, used to build/resolve cross-notebook image links
+    browse_port = 6789,
+    -- commit & sync notes with the remote when a saved buffer is closed
+    autosync = true,
+    -- timestamp format for generated note filenames
+    timestamp_format = "%Y%m%d%H%M%S",
+    -- custom picker preview: function(ctx) (nil uses snacks' file preview)
+    preview = nil,
+  })
+<
+                                                                    *nb-option-dir*
+dir ~
+  nb data directory containing one subdirectory (= git repository) per
+  notebook. When nil, `$NB_DIR` is used if set, otherwise `~/.nb`.
+
+                                                            *nb-option-browse_port*
+browse_port ~
+  Port of `nb browse`. Image links to other notebooks are inserted as
+  `http://localhost:<port>/--original/<notebook>/<file>` URLs so they render
+  in the nb web UI; |nb.resolve_browse_url()| converts them back to local
+  paths.
+
+                                                              *nb-option-autosync*
+autosync ~
+  When true, a note that was saved and then closed (|BufUnload|, |BufDelete|,
+  or quitting Neovim) is committed and synced with its notebook's remote.
+  See |nb-autosync|.
+
+                                                      *nb-option-timestamp_format*
+timestamp_format ~
+  |os.date()| format used for generated note filenames (`<timestamp>.md`).
+
+                                                               *nb-option-preview*
+preview ~
+  Custom picker preview `function(ctx)`. Called for non-folder items with the
+  snacks picker preview context. When nil, the default snacks file preview is
+  used.
+
+==============================================================================
+5. UI FUNCTIONS                                                         *nb-ui*
+
+All functions live on the `require("nb")` module.
+
+pick()                                                               *nb.pick()*
+  Fuzzy-find notes by title across all notebooks, sorted by mtime.
+  <C-d> deletes the selected note (with confirmation).
+
+grep()                                                               *nb.grep()*
+  Live-grep note contents across all notebooks.
+
+add()                                                                 *nb.add()*
+  Prompt for a title and create a note in the current notebook. Outside the
+  nb directory, falls back to |nb.add_select()|.
+
+add_select()                                                   *nb.add_select()*
+  Pick a notebook, then create a note in it.
+
+import_image()                                               *nb.import_image()*
+  Import an image into the current notebook and insert its markdown link.
+  Uses the clipboard image when img-clip.nvim is available, otherwise
+  prompts for a file path.
+
+link()                                                               *nb.link()*
+  Pick any note or image and insert a link at the cursor: `[[note]]` within
+  the same notebook, `[[notebook:note]]` across notebooks, and image links
+  via the `nb browse` URL when crossing notebooks.
+
+move()                                                               *nb.move()*
+  Move the current note to another notebook (both notebook repositories are
+  committed).
+
+adopt_buffer()                                               *nb.adopt_buffer()*
+  Move the current (external) file into a notebook, optionally retitling it
+  to a timestamped note with a rewritten H1.
+
+==============================================================================
+6. CORE API                                                            *nb-api*
+
+dir()                                                                 *nb.dir()*
+  Resolved nb data directory.
+
+get_title({path})                                               *nb.get_title()*
+  Note title (first H1 or frontmatter `title:`) for files under the nb
+  directory; nil for other paths. Useful for bufferline labels.
+
+md_title({path})                                                 *nb.md_title()*
+  Title extraction for any markdown file (no directory restriction).
+
+get_note_path({id})                                         *nb.get_note_path()*
+  Resolve a `notebook:note` id to a file path via the nb CLI.
+
+notebook_of({path})                                           *nb.notebook_of()*
+  Notebook name a path belongs to, or nil.
+
+resolve_browse_url({src})                               *nb.resolve_browse_url()*
+  Convert an `nb browse --original` URL to a local file path (nil when the
+  URL does not match). Useful as a `snacks.image` resolver: >lua
+
+  image = {
+    resolve = function(file, src)
+      return require("nb").resolve_browse_url(src)
+    end,
+  }
+<
+commit_and_sync({path})                                   *nb.commit_and_sync()*
+  Commit the file in its notebook repository and sync with the remote
+  (`pull --rebase --autostash` + `push`) in a detached background process.
+
+add_note({title}, {notebook})                                    *nb.add_note()*
+  Create a note file and commit it. Returns the new path.
+
+import_file({path}, {notebook}, {filename})                   *nb.import_file()*
+  Copy a file into a notebook (collision-safe) and commit it.
+
+delete_note({id})                                             *nb.delete_note()*
+  Delete `notebook:filename` and commit.
+
+move_note({id}, {notebook})                                     *nb.move_note()*
+  Move `notebook:filename` to another notebook; commits both repositories.
+
+adopt_file({path}, {notebook}, {title})                        *nb.adopt_file()*
+  Move an external file into a notebook. With {title}, the file is renamed
+  to `<timestamp>.md` and its H1 replaced.
+
+list_notebooks()                                           *nb.list_notebooks()*
+  Sorted list of notebook names.
+
+list_all_items()                                           *nb.list_all_items()*
+  All note/file items across notebooks (mtime descending), in the item shape
+  used by the pickers.
+
+==============================================================================
+7. AUTOSYNC                                                       *nb-autosync*
+
+With `autosync = true` (the default), nb.nvim tracks buffers under the nb
+directory that have been written. When such a buffer is closed — or Neovim
+exits — the note is committed (`Edit: <filename>`) and, if the notebook has
+an upstream, synced via `git pull --rebase --autostash` and `git push`.
+
+The sync runs detached, so quitting with `:wq` does not interrupt it.
+
+Note: when the rebase hits a conflict, the push is skipped and the commit
+remains local; resolve it with `nb sync` or plain git in the notebook.
+
+==============================================================================
+8. HEALTH                                                           *nb-health*
+
+Run `:checkhealth nb` to verify the environment: Neovim version, nb and git
+executables, data directory resolution, and plugin dependencies.
+
+vim:tw=78:ts=8:noet:ft=help:norl:
