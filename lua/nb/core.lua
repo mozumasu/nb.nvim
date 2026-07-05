@@ -149,7 +149,10 @@ function M.commit_and_sync(filepath)
       "Edit: " .. filename
     ),
     -- upstream が設定されている場合のみリモート同期
-    "if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then git pull --rebase --autostash --quiet; git push --quiet; fi",
+    "if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then",
+    "  git pull --rebase --autostash --quiet",
+    "  git push --quiet",
+    "fi",
   }, "\n")
   vim.system({ "sh", "-c", script }, { cwd = notebook_dir, text = true, detach = true })
 end
