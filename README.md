@@ -127,6 +127,13 @@ options = {
 }
 ```
 
+## Documentation & troubleshooting
+
+- `:h nb.nvim` — full vimdoc reference (options, UI functions, core API,
+  autosync semantics)
+- `:checkhealth nb` — diagnose setup problems: nb / git executables, data
+  directory resolution, and plugin dependencies
+
 ## License
 
 MIT
