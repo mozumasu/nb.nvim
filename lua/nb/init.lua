@@ -3,6 +3,7 @@
 -- 公開 API:
 --   setup(opts)  -- 設定（nb/config.lua の defaults 参照）
 --   ui:   pick / grep / add / add_select / import_image / link / move / adopt_buffer
+--   link: follow_link / link_at_cursor
 --   core: dir / get_title / md_title / get_note_path / notebook_of / resolve_browse_url /
 --         commit_and_sync / add_note / import_file / delete_note / move_note / adopt_file /
 --         list_notebooks / list_all_items
@@ -14,11 +15,14 @@ function M.setup(opts)
   if config.options.autosync then
     require("nb.autosync").enable()
   end
+  if config.options.marksman_filter then
+    require("nb.link").enable_marksman_filter()
+  end
 end
 
 return setmetatable(M, {
   __index = function(_, key)
-    for _, mod in ipairs({ "nb.ui", "nb.core" }) do
+    for _, mod in ipairs({ "nb.ui", "nb.link", "nb.core" }) do
       local value = require(mod)[key]
       if value ~= nil then
         return value

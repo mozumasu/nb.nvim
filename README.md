@@ -20,6 +20,8 @@ automatic git commit & remote sync when you close a note.
 - **Link** — insert `[[wiki-style]]` links to any note, including
   cross-notebook `[[notebook:note]]` links and image links served via
   `nb browse`
+- **Follow links** — jump to the note behind a `[[notebook:name]]` link, with
+  Marksman's "non-existent document" false positives filtered out
 - **Import images** — import an image from the clipboard (via
   [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim)) or a file
   path, and insert its markdown link
@@ -73,6 +75,8 @@ require("nb").setup({
   autosync = true,
   -- timestamp format for generated note filenames
   timestamp_format = "%Y%m%d%H%M%S",
+  -- drop Marksman "non-existent document" diagnostics for [[notebook:name]] links
+  marksman_filter = true,
   -- custom picker preview: function(ctx) (nil uses snacks' file preview)
   preview = nil,
 })
@@ -92,6 +96,8 @@ UI (used by the keymaps above):
 | `require("nb").link()` | Insert a `[[link]]` to any note or image |
 | `require("nb").move()` | Move the current note to another notebook |
 | `require("nb").adopt_buffer()` | Move the current (external) file into a notebook |
+| `require("nb").follow_link()` | Open the `[[notebook:name]]` link under the cursor (`true` if handled) |
+| `require("nb").link_at_cursor()` | The `notebook:name` link string under the cursor, or `nil` |
 
 Core helpers for building your own integrations:
 
@@ -101,6 +107,20 @@ Core helpers for building your own integrations:
 | `resolve_browse_url(src)` | Resolve an `nb browse --original` URL to a local file path |
 | `get_note_path(id)` | Resolve `notebook:note` to a file path via the nb CLI |
 | `commit_and_sync(path)` | Commit a note and sync its notebook with the remote |
+
+### Example: `gd` on nb links with LSP fallback
+
+`follow_link()` returns `false` when the cursor is not on an nb link, so you
+can chain your own fallback (plain `vim.lsp.buf.definition()`, a picker, …):
+
+```lua
+-- in a markdown FileType autocmd or after/ftplugin/markdown.lua
+vim.keymap.set("n", "gd", function()
+  if not require("nb").follow_link() then
+    vim.lsp.buf.definition()
+  end
+end, { buffer = true, desc = "Go to nb link or definition" })
+```
 
 ### Example: render nb images with snacks.nvim
 

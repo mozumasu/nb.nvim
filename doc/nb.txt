@@ -8,9 +8,10 @@ CONTENTS                                                     *nb.nvim* *nb-conte
   3. Setup ........................................ |nb-setup|
   4. Options ...................................... |nb-options|
   5. UI functions ................................. |nb-ui|
-  6. Core API ..................................... |nb-api|
-  7. Autosync ..................................... |nb-autosync|
-  8. Health ....................................... |nb-health|
+  6. Links ........................................ |nb-links|
+  7. Core API ..................................... |nb-api|
+  8. Autosync ..................................... |nb-autosync|
+  9. Health ....................................... |nb-health|
 
 ==============================================================================
 1. INTRODUCTION                                              *nb-introduction*
@@ -60,6 +61,8 @@ Defaults: >lua
     autosync = true,
     -- timestamp format for generated note filenames
     timestamp_format = "%Y%m%d%H%M%S",
+    -- drop Marksman diagnostics for [[notebook:name]] links
+    marksman_filter = true,
     -- custom picker preview: function(ctx) (nil uses snacks' file preview)
     preview = nil,
   })
@@ -85,6 +88,13 @@ autosync ~
                                                       *nb-option-timestamp_format*
 timestamp_format ~
   |os.date()| format used for generated note filenames (`<timestamp>.md`).
+
+                                                       *nb-option-marksman_filter*
+marksman_filter ~
+  When true, "Link to non-existent document" diagnostics that Marksman
+  reports for `[[notebook:name]]` links are dropped. Only the marksman
+  client's diagnostics handler is wrapped; other language servers are not
+  affected. See |nb-links|.
 
                                                                *nb-option-preview*
 preview ~
@@ -130,7 +140,34 @@ adopt_buffer()                                               *nb.adopt_buffer()*
   to a timestamped note with a rewritten H1.
 
 ==============================================================================
-6. CORE API                                                            *nb-api*
+6. LINKS                                                             *nb-links*
+
+nb.nvim inserts cross-notebook links as `[[notebook:name]]` (see |nb.link()|).
+These are not real documents, so Markdown language servers cannot resolve
+them; nb.nvim provides navigation and diagnostics filtering for them.
+
+follow_link()                                               *nb.follow_link()*
+  Open the note the cursor is on when it is a `[[notebook:name]]` link.
+  Returns true when the cursor was on an nb link (even if the note could not
+  be resolved — a warning is shown), false otherwise. Choose your own
+  fallback, e.g. mapping `gd` in markdown buffers: >lua
+
+  vim.keymap.set("n", "gd", function()
+    if not require("nb").follow_link() then
+      vim.lsp.buf.definition()
+    end
+  end, { buffer = true, desc = "Go to nb link or definition" })
+<
+link_at_cursor()                                         *nb.link_at_cursor()*
+  The `notebook:name` string of the link under the cursor, or nil. Only
+  links containing a colon are considered; plain `[[wiki-links]]` are left
+  to your Markdown language server.
+
+Marksman also flags nb links as "Link to non-existent document"; the
+|nb-option-marksman_filter| option (default true) drops those diagnostics.
+
+==============================================================================
+7. CORE API                                                            *nb-api*
 
 dir()                                                                 *nb.dir()*
   Resolved nb data directory.
@@ -186,7 +223,7 @@ list_all_items()                                           *nb.list_all_items()*
   used by the pickers.
 
 ==============================================================================
-7. AUTOSYNC                                                       *nb-autosync*
+8. AUTOSYNC                                                       *nb-autosync*
 
 With `autosync = true` (the default), nb.nvim tracks buffers under the nb
 directory that have been written. When such a buffer is closed — or Neovim
@@ -199,7 +236,7 @@ Note: when the rebase hits a conflict, the push is skipped and the commit
 remains local; resolve it with `nb sync` or plain git in the notebook.
 
 ==============================================================================
-8. HEALTH                                                           *nb-health*
+9. HEALTH                                                           *nb-health*
 
 Run `:checkhealth nb` to verify the environment: Neovim version, nb and git
 executables, data directory resolution, and plugin dependencies.
