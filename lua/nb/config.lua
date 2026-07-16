@@ -9,6 +9,8 @@ M.defaults = {
   autosync = true,
   -- 新規ノートのファイル名に使うタイムスタンプ形式
   timestamp_format = "%Y%m%d%H%M%S",
+  -- Marksman の診断から [[notebook:name]] リンクへの誤検知を除外する
+  marksman_filter = true,
   -- picker のカスタムプレビュー関数 function(ctx) （nil なら snacks のファイルプレビュー）
   preview = nil,
 }
