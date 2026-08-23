@@ -288,6 +288,7 @@ function M.link()
   local nb = core()
   local Snacks = require("snacks")
   local current_notebook = get_current_notebook()
+  local current_folder = nb.folder_of(vim.fn.expand("%:p"))
 
   local items = nb.list_all_items()
   if not items or #items == 0 then
@@ -304,14 +305,16 @@ function M.link()
       picker:close()
       if item then
         local link
+        local path
         -- 異なるノートブックの場合は notebook:name 形式
         local needs_prefix = current_notebook and item.notebook ~= current_notebook
         if item.is_image then
           if needs_prefix then
-            link = string.format("![%s](%s)", item.name, nb.browse_url(item.notebook, item.name))
+            path = nb.browse_url(item.notebook, item.name, item.folder_path)
           else
-            link = string.format("![%s](%s)", item.name, item.name)
+            path = nb.relative_path(current_folder, item.folder_path, item.name)
           end
+          link = string.format("![%s](<%s>)", item.name, path)
         else
           if needs_prefix then
             link = string.format("[[%s:%s]]", item.notebook, item.name)

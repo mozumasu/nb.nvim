@@ -120,8 +120,28 @@ function M.resolve_browse_url(src)
 end
 
 -- 別 notebook の画像を参照するための `nb browse` URL を生成
-function M.browse_url(notebook, filename)
-  return string.format("http://localhost:%d/--original/%s/%s", config.options.browse_port, notebook, filename)
+function M.browse_url(notebook, filename, folder_path)
+  local folder_file_path = folder_path and (folder_path .. filename) or filename
+  return string.format("http://localhost:%d/--original/%s/%s", config.options.browse_port, notebook, folder_file_path)
+end
+
+-- 同ノートブック内での相対パスの計算
+-- from_folder: 今リンクを挿入しているノートの居場所
+-- to_folder: リンク先画像の居場所
+function M.relative_path(from_folder, to_folder, filename)
+  local to_normalized = to_folder and to_folder:sub(1, -2) or nil
+  if from_folder == to_normalized then
+    return filename
+  end
+
+  -- 階層数を数える
+  local up = 0
+  if from_folder then
+    for _ in from_folder:gmatch("[^/]+") do
+      up = up + 1
+    end
+  end
+  return string.rep("../", up) .. (to_folder or "") .. filename
 end
 
 -- 指定 notebook の git に変更をコミット（バックグラウンド非同期）
