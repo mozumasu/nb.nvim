@@ -53,7 +53,7 @@ With lazy.nvim: >lua
 Defaults: >lua
 
   require("nb").setup({
-    -- nb data directory (nil resolves $NB_DIR, then ~/.nb)
+    -- nb data directory (nil resolves $NB_DIR, then NB_DIR from `nb env`, then ~/.nb)
     dir = nil,
     -- `nb browse` port, used to build/resolve cross-notebook image links
     browse_port = 6789,
@@ -70,7 +70,8 @@ Defaults: >lua
                                                                     *nb-option-dir*
 dir ~
   nb data directory containing one subdirectory (= git repository) per
-  notebook. When nil, `$NB_DIR` is used if set, otherwise `~/.nb`.
+  notebook. When nil, `$NB_DIR` is used if set, then the `NB_DIR` reported
+  by `nb env` (so a value set in `~/.nbrc` is picked up), otherwise `~/.nb`.
 
                                                             *nb-option-browse_port*
 browse_port ~
