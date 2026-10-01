@@ -67,7 +67,7 @@ Defaults:
 
 ```lua
 require("nb").setup({
-  -- nb data directory (nil resolves $NB_DIR, then ~/.nb)
+  -- nb data directory (nil resolves $NB_DIR, then NB_DIR from `nb env`, then ~/.nb)
   dir = nil,
   -- `nb browse` port, used to build/resolve cross-notebook image links
   browse_port = 6789,
