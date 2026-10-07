@@ -156,6 +156,19 @@ local function git_commit_async(notebook_dir, filename, message)
   end)
 end
 
+-- commit_and_sync のスクリプト終了コード
+local SYNC_EXIT = {
+  lock_timeout = 10,
+  rebase_in_progress = 11,
+  pull_failed = 12,
+}
+
+local SYNC_EXIT_MESSAGES = {
+  [SYNC_EXIT.lock_timeout] = "sync skipped: another sync is still running",
+  [SYNC_EXIT.rebase_in_progress] = "sync skipped: a rebase is in progress",
+  [SYNC_EXIT.pull_failed] = "sync failed: pull --rebase was aborted, resolve with `nb sync`",
+}
+
 -- nb 配下のファイルをコミットし、リモートとも同期（pull --rebase + push）
 -- detach 付きで起動するため Vim 終了後も処理が継続する
 function M.commit_and_sync(filepath)
@@ -174,17 +187,46 @@ function M.commit_and_sync(filepath)
   end
 
   local script = table.concat({
+    -- 同一 notebook への同期を直列化（VimLeavePre で複数同時起動されても git 操作が競合しないように）
+    'lock="$(git rev-parse --git-path nb-sync.lock)" || exit 1',
+    -- 異常終了で残ったロックは 10 分で失効させる
+    'if [ -d "$lock" ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +10)" ]; then rmdir "$lock"; fi',
+    "i=0",
+    'until mkdir "$lock" 2>/dev/null; do',
+    "  i=$((i + 1))",
+    '  [ "$i" -ge 60 ] && exit ' .. SYNC_EXIT.lock_timeout,
+    "  sleep 1",
+    "done",
+    "trap 'rmdir \"$lock\"' EXIT",
+    "trap 'exit 1' HUP INT TERM",
+    -- rebase 途中（手動操作中・前回の中断）の場合は何もしない
+    'if [ -d "$(git rev-parse --git-path rebase-merge)" ] ||',
+    '  [ -d "$(git rev-parse --git-path rebase-apply)" ]; then',
+    "  exit " .. SYNC_EXIT.rebase_in_progress,
+    "fi",
     "git add -- " .. vim.fn.shellescape(filename),
     "git diff --cached --quiet -- " .. vim.fn.shellescape(filename) .. " || git commit -m " .. vim.fn.shellescape(
       "Edit: " .. filename
     ),
     -- upstream が設定されている場合のみリモート同期
     "if git rev-parse --abbrev-ref @{u} >/dev/null 2>&1; then",
-    "  git pull --rebase --autostash --quiet",
-    "  git push --quiet",
+    "  if git pull --rebase --autostash --quiet; then",
+    "    git push --quiet",
+    "  else",
+    -- rebase 途中の状態を残さない（--quit は autostash を stash list に退避する）
+    "    git rebase --abort >/dev/null 2>&1 || git rebase --quit >/dev/null 2>&1",
+    "    exit " .. SYNC_EXIT.pull_failed,
+    "  fi",
     "fi",
   }, "\n")
-  vim.system({ "sh", "-c", script }, { cwd = notebook_dir, text = true, detach = true })
+  vim.system({ "sh", "-c", script }, { cwd = notebook_dir, text = true, detach = true }, function(result)
+    local msg = SYNC_EXIT_MESSAGES[result.code]
+    if msg then
+      vim.schedule(function()
+        vim.notify("nb: " .. msg .. " (" .. notebook_dir .. ")", vim.log.levels.WARN)
+      end)
+    end
+  end)
 end
 
 -- nbコマンドを実行（タイムアウト10秒でハング防止）
