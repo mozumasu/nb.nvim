@@ -233,8 +233,12 @@ an upstream, synced via `git pull --rebase --autostash` and `git push`.
 
 The sync runs detached, so quitting with `:wq` does not interrupt it.
 
-Note: when the rebase hits a conflict, the push is skipped and the commit
-remains local; resolve it with `nb sync` or plain git in the notebook.
+Syncs for the same notebook run one at a time. A sync is skipped when a
+rebase is already in progress in the notebook.
+
+Note: when `git pull --rebase` fails (e.g. a conflict), the rebase is
+aborted, the push is skipped and the commit remains local; resolve it with
+`nb sync` or plain git in the notebook. A warning is shown in either case.
 
 ==============================================================================
 9. HEALTH                                                           *nb-health*
